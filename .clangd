@@ -1,0 +1,23 @@
+---
+If:
+  PathMatch: .*\.h
+CompileFlags:
+  Add:
+    - -include
+    - kernel/types.h
+    - -include
+    - kernel/param.h
+    - -include
+    - kernel/memlayout.h
+    - -include
+    - kernel/riscv.h
+    - -include
+    - kernel/spinlock.h
+    - -include
+    - kernel/proc.h
+    - -std=gnu11
+---
+If:
+  PathMatch: .*/(types|param|memlayout|riscv|spinlock|proc)\.h
+Diagnostics:
+  Suppress: '*'
