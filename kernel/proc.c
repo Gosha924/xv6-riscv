@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "procinfo.h"
 
 struct cpu cpus[NCPU];
 
@@ -41,6 +42,58 @@ proc_mapstacks(pagetable_t kpgtbl)
     uint64 va = KSTACK((int)(p - proc));
     kvmmap(kpgtbl, va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
   }
+}
+
+int
+ps_listinfo(struct procinfo *plist, int lim)
+{
+  struct proc *cur = myproc();
+  int count;
+  struct proc *p;
+  struct procinfo info;
+  int writeen = 0;
+  if (plist == 0 || lim < 0)
+    return -1;
+  count = 0;
+  for (int i = 0; i < NPROC; i++) {
+    p = &proc[i];
+    acquire(&p->lock);
+    if (p->state != UNUSED && p->state != USED)
+      count = count + 1;
+    release(&p->lock);
+    if (count > lim)
+      return count;
+  }
+
+  acquire(&wait_lock);
+  for (int i = 0; i < NPROC; i++) {
+      p = &proc[i];
+      acquire(&p->lock);
+      if (p->state == UNUSED || p->state == USED) {
+        release(&p->lock);
+        continue;
+      }
+      info.id = p->pid;
+      safestrcpy(info.name, p->name, sizeof(info.name));
+      info.state = p->state;
+      struct proc *parent = p->parent;
+      if (parent != 0) {
+        acquire(&parent->lock);
+        info.parent_id = parent->pid;
+        release(&parent->lock);
+      } else {
+        info.parent_id = 0;
+      }
+      release(&p->lock);
+      release(&wait_lock);
+      writeen = 0;
+  if (copyout(cur->pagetable, (uint64)&plist[written], uint64, char *, uint64))
+    }
+
+
+
+
+  return -1;
 }
 
 // initialize the proc table.

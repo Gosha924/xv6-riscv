@@ -6,6 +6,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "vm.h"
+#include "procinfo.h"
 
 uint64
 sys_exit(void)
@@ -119,4 +120,26 @@ sys_sum(void)
   argint(1, &b);
   printk("kernel: sum = %d\n", a+b);
   return a+b;
+}
+
+uint64
+sys_ps_listinfo(void)
+{
+  uint64 plist;
+  int lim;
+  argaddr(0, &plist);
+  argint(1, &lim);
+  if (plist == 0 || lim < 0)
+    return -1;
+  int count;
+  struct proc proc;
+  count = 0;
+  for (int i = 0; i < NPROC; i++) {
+    struct proc *proc = proc[i]
+  }
+
+
+
+
+  return -1;
 }
