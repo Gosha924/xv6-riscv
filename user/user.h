@@ -2,6 +2,9 @@
 
 struct stat;
 
+struct procinfo;
+int ps_listinfo(struct procinfo *, int);
+
 // system calls
 int fork(void);
 int exit(int) __attribute__((noreturn));

@@ -129,17 +129,5 @@ sys_ps_listinfo(void)
   int lim;
   argaddr(0, &plist);
   argint(1, &lim);
-  if (plist == 0 || lim < 0)
-    return -1;
-  int count;
-  struct proc proc;
-  count = 0;
-  for (int i = 0; i < NPROC; i++) {
-    struct proc *proc = proc[i]
-  }
-
-
-
-
-  return -1;
+  return ps_listinfo((struct procinfo *)plist, lim);
 }

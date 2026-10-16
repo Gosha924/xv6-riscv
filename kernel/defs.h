@@ -10,6 +10,7 @@ struct sleeplock;
 struct stat;
 struct superblock;
 struct procinfo;
+int ps_listinfo(struct procinfo *, int);
 
 // bio.c
 void            binit(void);
