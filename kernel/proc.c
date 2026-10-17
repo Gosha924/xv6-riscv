@@ -67,15 +67,14 @@ ps_listinfo(struct procinfo *plist, int lim)
   if (count > lim)
     return count;
 
+  acquire(&wait_lock);
   for (int i = 0; i < NPROC; i++) {
     p = &proc[i];
 
-    acquire(&wait_lock);
     acquire(&p->lock);
 
     if (p->state == UNUSED || p->state == USED) {
       release(&p->lock);
-      release(&wait_lock);
       continue;
     }
 
@@ -93,15 +92,17 @@ ps_listinfo(struct procinfo *plist, int lim)
     }
 
     release(&p->lock);
-    release(&wait_lock);
 
     if (copyout(cur->pagetable, cur->sz, (uint64)&plist[written],
-            (char *)&info, sizeof(info)) < 0)
-      return -1;
+            (char *)&info, sizeof(info)) < 0) {
+              release(&wait_lock); 
+              return -1;
+            }
 
     written++;
   }
-
+  
+  release(&wait_lock); 
   return written;
 }
 
