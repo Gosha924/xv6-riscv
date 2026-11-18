@@ -4,7 +4,7 @@
 #include "kernel/param.h"
 
 #define SIZEHEADER sizeof(block_t)
-#define NUMBINS 3
+#define NUMBINS 9
 #define PAGESIZE 4096
 
 typedef struct block {
@@ -21,9 +21,15 @@ block_t *lastBlock;
 int heap_ready;
 
 static int get_bin(uint64 size) {
-  if (size < 32) return 0;
-  if (size < 128) return 1;
-  return 2;
+  if (size < 16) return 0;
+  if (size < 32) return 1;
+  if (size < 64) return 2;
+  if (size < 128) return 3;
+  if (size < 256) return 4;
+  if (size < 512) return 5;
+  if (size < 1024) return 6;
+  if (size < 2048) return 7;
+  return 8;
 }
 
 static void heap_init(void) {
@@ -88,7 +94,7 @@ static void remove_block_from_bin(block_t *block) {
   }
 }
 
-void* malloc(uint64 userSize) {
+void* malloc(uint userSize) {
   if (!heap_ready) heap_init();
   if (userSize == 0) return 0;
 
@@ -121,4 +127,9 @@ void* malloc(uint64 userSize) {
   char *found_addr = (char *)found;
   char *data_addr = found_addr + SIZEHEADER;
   return (void *)data_addr;
+}
+
+
+void free(void *ptr) {
+    (void)ptr;
 }
