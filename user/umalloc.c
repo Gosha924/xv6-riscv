@@ -6,6 +6,7 @@
 #define SIZEHEADER sizeof(block_t)
 #define NUMBINS 9
 #define PAGESIZE 4096
+#define MINSPLIT (sizeof(block_t) + 8)
 
 typedef struct block {
   uint64 size;
@@ -94,6 +95,30 @@ static void remove_block_from_bin(block_t *block) {
   }
 }
 
+static void split_block(block_t *block, uint64 need) {
+  if (block->size < need + MINSPLIT) {
+    return;
+  }
+  char *block_addr = (char *)block;
+  char *rest_addr = block_addr + need;
+
+  block_t *rest = (block_t *)rest_addr;
+  rest->size = block->size - need;
+  rest->is_free = 1;
+  rest->next = block->next;
+  rest->next_free = 0;
+
+  block->size = need;
+  block->next = rest;
+
+  if (lastBlock == block) {
+    lastBlock = rest;
+  }
+  int index = get_bin(rest->size);
+  rest->next_free = bins[index];
+  bins[index] = rest;
+}
+
 void* malloc(uint userSize) {
   if (!heap_ready) heap_init();
   if (userSize == 0) return 0;
@@ -121,7 +146,7 @@ void* malloc(uint userSize) {
   }
 
   remove_block_from_bin(found);
-  // тут должна быть функция которая разбивает блок если он выделили слишком много
+  split_block(found, totalSize);
   found->is_free = 0;
 
   char *found_addr = (char *)found;
