@@ -45,11 +45,11 @@ static void heap_init(void) {
 
 
 static block_t* extend_heap(uint64 needSizeMemory) {
-  int pages = (needSizeMemory + PAGESIZE - 1) / PAGESIZE;
+  uint64 pages = (needSizeMemory + PAGESIZE - 1) / PAGESIZE;
   if (pages == 0) {
     pages = 1;
   }
-  int alloc = pages * PAGESIZE;
+  uint64 alloc = pages * PAGESIZE;
 
   char *mem = sbrk(alloc);
   if (mem == (char*) -1) {
@@ -69,11 +69,12 @@ static block_t* extend_heap(uint64 needSizeMemory) {
   lastBlock = new_block;
 
   // в массиве храняться первые блоки соотв размера, а остальные можно получить через next_free
-  int indexInBin = alloc;
+  int indexInBin = get_bin(alloc);
   new_block->next_free = bins[indexInBin];
   bins[indexInBin] = new_block;
   return new_block;
 }
+
 
 static void remove_block_from_bin(block_t *block) {
   int index = get_bin(block->size);
@@ -94,6 +95,7 @@ static void remove_block_from_bin(block_t *block) {
     cur = cur->next_free;
   }
 }
+
 
 static void split_block(block_t *block, uint64 need) {
   if (block->size < need + MINSPLIT) {
@@ -119,12 +121,15 @@ static void split_block(block_t *block, uint64 need) {
   bins[index] = rest;
 }
 
+
 void* malloc(uint userSize) {
   if (!heap_ready) heap_init();
   if (userSize == 0) return 0;
 
   uint64 totalSize = userSize + SIZEHEADER;
-  totalSize = totalSize + (8 - (totalSize % 8));
+  if (totalSize % 8 != 0) {
+    totalSize = totalSize + (8 - (totalSize % 8));
+  }
   int startBin = get_bin(totalSize);
 
   block_t *found = 0;
