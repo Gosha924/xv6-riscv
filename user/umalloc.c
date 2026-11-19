@@ -124,7 +124,7 @@ void* malloc(uint userSize) {
   if (userSize == 0) return 0;
 
   uint64 totalSize = userSize + SIZEHEADER;
-  totalSize = (totalSize + 7) & ~7;
+  totalSize = totalSize + (8 - (totalSize % 8));
   int startBin = get_bin(totalSize);
 
   block_t *found = 0;
@@ -156,5 +156,19 @@ void* malloc(uint userSize) {
 
 
 void free(void *ptr) {
-    (void)ptr;
+    if (ptr == 0) return;
+    char* data_addr = (char *)ptr;
+    char* header_addr = data_addr - SIZEHEADER;
+    block_t *block = (block_t *)header_addr;
+
+    if (block->is_free) {
+      printf("FREE: ERROR double free at %p\n", ptr);
+      return;
+    }
+    block->is_free = 1;
+
+    int index = get_bin(block->size);
+    block->next_free = bins[index];
+    bins[index] = block;
+    return;
 }
