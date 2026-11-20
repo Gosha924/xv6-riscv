@@ -1,0 +1,37 @@
+---
+# Цель для всех файлов: делает -march=rv64gc и -mcmodel=medany валидными
+CompileFlags:
+  Add:
+    - --target=riscv64
+---
+# mkfs собирается хостовым gcc — ему возвращаем хостовую цель
+If:
+  PathMatch: .*mkfs.*
+CompileFlags:
+  Remove:
+    - --target=riscv64
+---
+# Заголовки: форсируем цепочку базовых include-ов xv6
+If:
+  PathMatch: .*\.h
+CompileFlags:
+  Add:
+    - -include
+    - kernel/types.h
+    - -include
+    - kernel/param.h
+    - -include
+    - kernel/memlayout.h
+    - -include
+    - kernel/riscv.h
+    - -include
+    - kernel/spinlock.h
+    - -include
+    - kernel/proc.h
+    - -std=gnu11
+---
+# Базовые заголовки при открытии отдельно попадают в TU дважды — гасим redefinition
+If:
+  PathMatch: .*/(types|param|memlayout|riscv|spinlock|proc)\.h
+Diagnostics:
+  Suppress: '*'
