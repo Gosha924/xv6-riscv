@@ -2,19 +2,14 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 #include "kernel/param.h"
+#include "user/umalloc.h"
 
-#define SIZEHEADER sizeof(Header)
-#define NUMBINS 8
 #define PAGESIZE 4096
 #define MINSPLIT (SIZEHEADER + 8)
 
-typedef struct header {
-  uint64 size;
-  uint64 is_free;
-  struct header* next_free;
-} Header;
-
 static Header *bins[NUMBINS];
+static char *heap_start;
+static char *heap_end;
 
 static int get_bin(uint64 size) {
   if (size < 32) return 0;
@@ -40,17 +35,21 @@ static Header* extend_heap(uint64 needSizeMemory) {
     printf("EXTEND: ERROR sbrk(%ld) failed\n", alloc);
     return 0;
   }
+
+  if (heap_start == 0)
+    heap_start = mem;
+
+  heap_end = mem + alloc;
+
   Header *new_block = (Header *)mem;
   new_block->size = alloc;
   new_block->is_free = 1;
   new_block->next_free = 0;
 
-  // в массиве храняться первые блоки соотв размера, а остальные можно получить через next_free
   int indexInBin = get_bin(alloc);
   new_block->next_free = bins[indexInBin];
   bins[indexInBin] = new_block;
-  printf("EXTEND: Created block at %p, size=%ld, added to bin[%d]\n",
-           new_block, alloc, indexInBin);
+  printf("EXTEND: Created block at %p, size=%ld, added to bin[%d]\n", new_block, alloc, indexInBin);
   return new_block;
 }
 
@@ -135,25 +134,32 @@ void* malloc(uint userSize) {
   char *found_addr = (char *)found;
   char *data_addr = found_addr + SIZEHEADER;
   printf("MALLOC: SUCCESS returning %p (block=%p, size=%ld)\n", data_addr, found, found->size);
+  
+  heap_debug_dump("malloc", heap_start, heap_end, bins);
+    
   return (void *)data_addr;
 }
 
 void free(void *ptr) {
-    printf("\nFREE: Request to free %p\n", ptr);
-    if (ptr == 0) return;
-    char* header_addr = (char *)ptr - SIZEHEADER;
-    Header *block = (Header *)header_addr;
-    printf("FREE: Block header at %p, size=%ld\n", block, block->size);
+  printf("\nFREE: Request to free %p\n", ptr);
+  if (ptr == 0) return;
+  char* header_addr = (char *)ptr - SIZEHEADER;
+  Header *block = (Header *)header_addr;
+  printf("FREE: Block header at %p, size=%ld\n", block, block->size);
 
-    if (block->is_free) {
-      printf("FREE: ERROR double free at %p\n", ptr);
-      return;
-    }
-    block->is_free = 1;
 
-    int index = get_bin(block->size);
-    block->next_free = bins[index];
-    bins[index] = block;
-    printf("FREE: SUCCESS block %p returned to bin[%d]\n", block, index);
+  if (block->is_free) {
+    printf("FREE: ERROR double free at %p\n", ptr);
     return;
+  }
+  block->is_free = 1;
+
+  int index = get_bin(block->size);
+  block->next_free = bins[index];
+  bins[index] = block;
+  printf("FREE: SUCCESS block %p returned to bin[%d]\n", block, index);
+    
+  heap_debug_dump("free", heap_start, heap_end, bins);
+    
+  return;
 }
