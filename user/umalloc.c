@@ -4,12 +4,10 @@
 #include "kernel/param.h"
 #include "user/umalloc.h"
 
-#define SIZEHEADER sizeof(block_t)
 #define PAGESIZE 4096
 #define MINSPLIT (SIZEHEADER + 8)
 
-static block_t *bins[NUMBINS];
-static int heap_ready;
+static Header *bins[NUMBINS];
 static char *heap_start;
 static char *heap_end;
 
@@ -48,12 +46,10 @@ static Header* extend_heap(uint64 needSizeMemory) {
   new_block->is_free = 1;
   new_block->next_free = 0;
 
-  // в массиве храняться первые блоки соотв размера, а остальные можно получить через next_free
   int indexInBin = get_bin(alloc);
   new_block->next_free = bins[indexInBin];
   bins[indexInBin] = new_block;
-  printf("EXTEND: Created block at %p, size=%ld, added to bin[%d]\n",
-           new_block, alloc, indexInBin);
+  printf("EXTEND: Created block at %p, size=%ld, added to bin[%d]\n", new_block, alloc, indexInBin);
   return new_block;
 }
 

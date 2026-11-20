@@ -3,19 +3,20 @@
 
 #include "kernel/types.h"
 
-#define NUMBINS 9
+#define SIZEHEADER sizeof(Header)
+#define NUMBINS 8
 
-typedef struct block {
+typedef struct header {
   uint64 size;
-  uint64 is_free; // 0 = занят, 1 = свободен
-  struct block* next_free;
-} block_t;
+  uint64 is_free;
+  struct header* next_free;
+} Header;
 
 void heap_debug_dump(
   const char *operation,
   char *heap_start,
   char *heap_end,
-  block_t *bins[NUMBINS]
+  Header *bins[NUMBINS]
 );
 
 #endif

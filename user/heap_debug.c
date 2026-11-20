@@ -3,13 +3,11 @@
 #include "user/user.h"
 #include "user/umalloc.h"
 
-#define SIZEHEADER sizeof(block_t)
-
 void heap_debug_dump(
   const char *operation,
   char *heap_start,
   char *heap_end,
-  block_t *bins[NUMBINS]
+  Header *bins[NUMBINS]
 ){
   uint64 used = 0;
   uint64 free_bytes = 0;
@@ -31,25 +29,23 @@ void heap_debug_dump(
 
   printf("\nAll heap blocks (physical order):\n");
 
-  block_t *block = (block_t *)heap_start;
+  Header *block = (Header *)heap_start;
 
   while ((char *)block < heap_end) {
     if (block->size < SIZEHEADER ||
         block->size > (uint64)(heap_end - (char *)block)) {
-      printf("Invalid block header at %p (size=%ld)\n",
-             block, block->size);
+      printf("Invalid block header at %p (size=%ld)\n", block, block->size);
       break;
     }
 
-    printf("  %p | size=%ld | %s\n",
-           block, block->size, block->is_free ? "FREE" : "USED");
+    printf("  %p | size=%ld | %s\n", block, block->size, block->is_free ? "FREE" : "USED");
 
     if (block->is_free)
       free_bytes += block->size - SIZEHEADER;
     else
       used += block->size - SIZEHEADER;
 
-    block = (block_t *)((char *)block + block->size);
+    block = (Header *)((char *)block + block->size);
   }
 
   if ((char *)block != heap_end)
