@@ -11,15 +11,12 @@
 typedef struct block {
   uint64 size;
   uint64 is_free; // 0  = занят, 1  = свободен
-  struct block* next;
   struct block* next_free;
 } block_t;
 
 
-block_t *bins[NUMBINS];
-block_t *firstBlock;
-block_t *lastBlock;
-int heap_ready;
+static block_t *bins[NUMBINS];
+static int heap_ready;
 
 static int get_bin(uint64 size) {
   if (size < 16) return 0;
@@ -38,9 +35,8 @@ static void heap_init(void) {
   for (int i = 0; i < NUMBINS; i++) {
     bins[i] = 0;
   }
-  firstBlock = 0;
-  lastBlock = 0;
   heap_ready = 1;
+   printf("HEAP: Initialized (heap_ready=1)\n");
 }
 
 
@@ -50,28 +46,24 @@ static block_t* extend_heap(uint64 needSizeMemory) {
     pages = 1;
   }
   uint64 alloc = pages * PAGESIZE;
+  printf("EXTEND: Requesting %ld bytes from kernel (pages=%ld, alloc=%ld)\n", needSizeMemory, pages, alloc);
 
   char *mem = sbrk(alloc);
   if (mem == (char*) -1) {
+    printf("EXTEND: ERROR sbrk(%ld) failed\n", alloc);
     return 0;
   }
   block_t *new_block = (block_t *)mem;
   new_block->size = alloc;
   new_block->is_free = 1;
-  new_block->next = 0;
   new_block->next_free = 0;
-
-  if (lastBlock != 0) {
-    lastBlock->next = new_block;
-  } else {
-    firstBlock = new_block;
-  }
-  lastBlock = new_block;
 
   // в массиве храняться первые блоки соотв размера, а остальные можно получить через next_free
   int indexInBin = get_bin(alloc);
   new_block->next_free = bins[indexInBin];
   bins[indexInBin] = new_block;
+  printf("EXTEND: Created block at %p, size=%ld, added to bin[%d]\n",
+           new_block, alloc, indexInBin);
   return new_block;
 }
 
@@ -85,8 +77,10 @@ static void remove_block_from_bin(block_t *block) {
     if (cur == block) {
       if (prev != 0) {
         prev->next_free = cur->next_free;
+        printf("REMOVE: Removed block %p from middle of bin[%d]\n", block, index);
       } else {
         bins[index] = cur->next_free;
+        printf("REMOVE: Removed block %p from head of bin[%d]\n", block, index);
       }
       block->next_free = 0;
       return;
@@ -94,11 +88,13 @@ static void remove_block_from_bin(block_t *block) {
     prev = cur;
     cur = cur->next_free;
   }
+  printf("REMOVE: ERROR block %p not found in bin[%d]\n", block, index);
 }
 
 
 static void split_block(block_t *block, uint64 need) {
   if (block->size < need + MINSPLIT) {
+    printf("SPLIT: Block %p (size=%ld) too small for split (need=%ld, MINSPLIT=%ld)\n", block, block->size, need, MINSPLIT);
     return;
   }
   char *block_addr = (char *)block;
@@ -107,22 +103,19 @@ static void split_block(block_t *block, uint64 need) {
   block_t *rest = (block_t *)rest_addr;
   rest->size = block->size - need;
   rest->is_free = 1;
-  rest->next = block->next;
   rest->next_free = 0;
 
   block->size = need;
-  block->next = rest;
 
-  if (lastBlock == block) {
-    lastBlock = rest;
-  }
   int index = get_bin(rest->size);
   rest->next_free = bins[index];
   bins[index] = rest;
+  printf("SPLIT: Block %p split into %ld + %ld (remainder at %p, bin[%d])\n", block, need, rest->size, rest, index);
 }
 
 
 void* malloc(uint userSize) {
+  printf("\nMALLOC: Request for %d bytes\n", userSize);
   if (!heap_ready) heap_init();
   if (userSize == 0) return 0;
 
@@ -130,6 +123,7 @@ void* malloc(uint userSize) {
   if (totalSize % 8 != 0) {
     totalSize = totalSize + (8 - (totalSize % 8));
   }
+  printf("MALLOC: totalSize (with header, aligned) = %ld\n", totalSize);
   int startBin = get_bin(totalSize);
 
   block_t *found = 0;
@@ -138,6 +132,7 @@ void* malloc(uint userSize) {
     while (block != 0) {
       if (block->size >= totalSize) {
         found = block;
+        printf("MALLOC: Found block %p in bin[%d] (size=%ld)\n", found, i, block->size);
         break;
       }
       block = block->next_free;
@@ -156,15 +151,18 @@ void* malloc(uint userSize) {
 
   char *found_addr = (char *)found;
   char *data_addr = found_addr + SIZEHEADER;
+  printf("MALLOC: SUCCESS returning %p (block=%p, size=%ld)\n", data_addr, found, found->size);
   return (void *)data_addr;
 }
 
 
 void free(void *ptr) {
+    printf("\nFREE: Request to free %p\n", ptr);
     if (ptr == 0) return;
     char* data_addr = (char *)ptr;
     char* header_addr = data_addr - SIZEHEADER;
     block_t *block = (block_t *)header_addr;
+    printf("FREE: Block header at %p, size=%ld\n", block, block->size);
 
     if (block->is_free) {
       printf("FREE: ERROR double free at %p\n", ptr);
@@ -175,5 +173,6 @@ void free(void *ptr) {
     int index = get_bin(block->size);
     block->next_free = bins[index];
     bins[index] = block;
+    printf("FREE: SUCCESS block %p returned to bin[%d]\n", block, index);
     return;
 }
