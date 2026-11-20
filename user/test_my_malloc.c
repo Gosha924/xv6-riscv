@@ -1,17 +1,40 @@
 #include "kernel/types.h"
 #include "user/user.h"
 
-int main() {
-    void *a = malloc(100);
+typedef struct Node {
+  int value;
+  struct Node *next;
+} Node;
 
-    void *b = malloc(75);
+int
+main(void){
+  Node *head = 0;
+  Node *node;
 
-    void *c = malloc(50);
-    void *d = malloc(150);
+  for(int i = 0; i < 3; i++){
+    node = malloc(sizeof(Node));
+    if(node == 0){
+      printf("malloc failed\n");
+      exit(1);
+    }
 
-    free(a);
-    free(b);
-    free(c);
-    free(d);
-    exit(0);
+    node->value = i;
+    node->next = head;
+    head = node;
+  }
+
+  printf("List:");
+  for(node = head; node != 0; node = node->next){
+    printf(" %d", node->value);
+  }
+  printf("\n");
+
+  while(head != 0){
+    node = head;
+    head = head->next;
+    free(node);
+  }
+
+  printf("All nodes freed\n");
+  exit(0);
 }
